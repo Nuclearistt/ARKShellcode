@@ -314,7 +314,7 @@ ServerListRequestHandle RequestInternetServerList(_In_ SteamInterface* iSteamMat
 	*reinterpret_cast<uint64*>(cur) = 0x706172574B45542C; //",TEKWrap"
 	*reinterpret_cast<uint32*>(cur += 8) = 0x3A726570; //"per:"
 	*reinterpret_cast<uint16*>(cur += 4) = 0x0031; //"1\0"
-	return RequestInternetServerList_o(iSteamMatchmakingServers, appId, filters, numFilters, responseCallback);
+	return RequestInternetServerList_o(iSteamMatchmakingServers, 346110, filters, numFilters, responseCallback);
 }
 void RulesResponded(_In_ SteamInterface* callback, _In_ cstr rule, _In_ cstr value) //Makes query fail if SEARCHKEYWORDS_s' value doesn't indicate that TEK Wrapper is used
 {
