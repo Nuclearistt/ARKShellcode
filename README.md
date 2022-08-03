@@ -12,7 +12,7 @@ ARK Shellcode is a collection of functions that upon injection into ARK: Surviva
 
 ARK Shellcode is not supposed to be used directly, the exe file compiled by project is only used to extract functions' machine code from it, which is later arranged along with PayloadData structure into a 4 KB binary (Payload.bin in repository, its layout is described in Layout.txt) to be injected into game process. Payload is a self-sustainable executable image that doesn't follow PE format because it doesn't have to, but has its own area for imported functions and global variables. For payload to do the actual job a thread must be created in game process to run its Main() function.  
 
-TEK Launcher uses [TEK Injector](https://github.com/Nuclearistt/TEKInjector) to handle all injection routine.
+TEK Launcher has the payload built into its .exe file as a resource and implements the code for injecting it as described above
 
 ## How does it work?
 
