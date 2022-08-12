@@ -45,15 +45,16 @@
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <FunctionLevelLinking>True</FunctionLevelLinking>
       <IntrinsicFunctions>True</IntrinsicFunctions>
+      <StringPooling>True</StringPooling>
       <OmitFramePointers>True</OmitFramePointers>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
-      <IntelJCCErratum>True</IntelJCCErratum>
+      <AdditionalOptions>/Gw /J %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <AdditionalDependencies>ntdll.lib;kernelbase.lib</AdditionalDependencies>
       <AdditionalLibraryDirectories>lib</AdditionalLibraryDirectories>
       <IgnoreAllDefaultLibraries>True</IgnoreAllDefaultLibraries>
-      <EntryPointSymbol>Main</EntryPointSymbol>
+      <EntryPointSymbol>Inject</EntryPointSymbol>
       <SubSystem>Console</SubSystem>
       <EnableCOMDATFolding>True</EnableCOMDATFolding>
       <OptimizeReferences>True</OptimizeReferences>
