@@ -374,7 +374,7 @@ Handle InputEvent;
 Handle OutputEvent;
 ptr DllNotificationCookie;
 ModuleHandle ImageBase;
-ServerRulesCallbackWrapper CallbackWrappers[128];
+ServerRulesCallbackWrapper CallbackWrappers[256];
 wchar ModsDirectoryPathUnicode[264];
 uint32 ModsDirectoryPathUnicodeSize;
 char ModsDirectoryPathUtf8[520];
@@ -578,7 +578,7 @@ bool SteamAPI_Init_Stub()
 	ServerRulesCallbackWrapper::VirtualMethodTableData[0] = ServerRulesCallbackWrapper::RulesResponded;
 	ServerRulesCallbackWrapper::VirtualMethodTableData[1] = ServerRulesCallbackWrapper::RulesFailedToRespond;
 	ServerRulesCallbackWrapper::VirtualMethodTableData[2] = ServerRulesCallbackWrapper::RulesRefreshComplete;
-	ServerRulesCallbackWrapper* const callbackWrappersEnd = CallbackWrappers + 128;
+	ServerRulesCallbackWrapper* const callbackWrappersEnd = CallbackWrappers + 256;
 	for (ServerRulesCallbackWrapper* i = CallbackWrappers; i < callbackWrappersEnd; ++i)
 		i->VirtualMethodTable = ServerRulesCallbackWrapper::VirtualMethodTableData;
 	SteamMatchmakingServersWrapper.Initialize(*PtrAddOffset<SteamInterface*>(ImageBase, 0x2FEA0));
