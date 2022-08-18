@@ -181,12 +181,6 @@ extern "C"
 	//Compiler intrinsics
 	uint64 strlen(_In_ cstr string);
 #pragma intrinsic(strlen)
-	uint128 _mm_cmpeq_epi64(_In_ uint128 left, _In_ uint128 right);
-#pragma intrinsic(_mm_cmpeq_epi64)
-	uint128 _mm_loadu_si128(_In_ const uint128* address);
-#pragma intrinsic(_mm_loadu_si128)
-	int32 _mm_testz_si128(_In_ uint128 left, _In_ uint128 right);
-#pragma intrinsic(_mm_testz_si128)
 	uint32 __readgsdword(_In_ uint32 offset);
 #pragma intrinsic(__readgsdword)
 
@@ -615,13 +609,9 @@ void DllNotification(_In_ DllNotificationReason reason, _In_ DllLoadedNotificati
 {
 	if (reason != DllNotificationReason::Loaded || data.BaseName->Length != 30)
 		return;
-	//Check if dll name is L"steam_api64.dll" with 2 SSE comparisons
-	const uint128* const data128 = reinterpret_cast<const uint128*>(data.BaseName->Buffer);
-	uint128 comparisonResult = _mm_cmpeq_epi64(_mm_loadu_si128(data128), { 0x0061006500740073, 0x00700061005F006D  });
-	if (_mm_testz_si128(comparisonResult, comparisonResult))
-		return;
-	comparisonResult = _mm_cmpeq_epi64(_mm_loadu_si128(data128 + 1), { 0x002E003400360069, 0x0000006C006C0064 });
-	if (_mm_testz_si128(comparisonResult, comparisonResult))
+	//Check if dll name is L"steam_api64.dll"
+	const uint64* const data64 = reinterpret_cast<const uint64*>(data.BaseName->Buffer);
+	if (data64[0] != 0x0061006500740073 || data64[1] != 0x00700061005F006D || data64[2] != 0x002E003400360069 || data64[3] != 0x0000006C006C0064)
 		return;
 	ImageBase = data.ImageBase;
 	//ARK never updates steam_api64.dll so abosulte offsets into image can be used
