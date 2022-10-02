@@ -38,10 +38,6 @@ enum class CreateProcessParametersFlags
 {
 	Normalize = 0x1
 };
-enum class DllNotificationReason
-{
-	Loaded = 1
-};
 enum class FileAttribute
 {
 	Directory = 0x10
@@ -62,6 +58,10 @@ enum class FileShare
 {
 	All = 7
 };
+enum class LoaderFlag
+{
+	LoadWithAlteredSearchPath = 0x8
+};
 enum class ObjectAttribute
 {
 	None,
@@ -75,7 +75,6 @@ enum class PageAllocationType
 enum class PageProtection
 {
 	ReadWrite = 0x4,
-	ExecuteRead = 0x20,
 	ExecuteReadWrite = 0x40
 };
 enum class ProcessFlag
@@ -88,11 +87,7 @@ enum class ProcessInformationClass
 };
 enum class ThreadFlag
 {
-	CreateSuspended
-};
-enum class ThreadInformationClass
-{
-	Basic
+	CreateSuspended = 0x1
 };
 enum class TokenInformationClass
 {
@@ -107,12 +102,6 @@ struct UnicodeString
 	uint16 Length;
 	uint16 MaxLength;
 	cwstr Buffer;
-};
-struct DllLoadedNotificationData
-{
-	uint64 Unused[2];
-	UnicodeString* BaseName;
-	ModuleHandle ImageBase;
 };
 struct FileBasicInformation
 {
@@ -142,7 +131,7 @@ _Struct_size_bytes_(Size) struct ObjectAttributes
 };
 struct PEB
 {
-	uint64 Unused1[2];
+	uint64 Unused[2];
 	ModuleHandle BaseAddress;
 };
 struct ProcessAttribute
@@ -162,31 +151,22 @@ _Struct_size_bytes_(Size) struct ProcessCreateInformation
 	uint64 Size;
 	uint64 Unused[10];
 };
-struct ThreadBasicInformation
-{
-	uint32 ExitCode;
-	uint64 Unused1[2];
-	uint64 ThreadId;
-	uint32 Unused2[3];
-};
 struct TokenMandatoryLabel
 {
 	cptr Sid;
 	uint32 Attributes;
 };
-typedef void (*DllNotification_t)(_In_ DllNotificationReason reason, _In_ DllLoadedNotificationData data, _In_opt_ ptr context);
 
 extern "C"
 {
 	//Compiler intrinsics
 	uint64 strlen(_In_ cstr string);
 #pragma intrinsic(strlen)
-	uint32 __readgsdword(_In_ uint32 offset);
-#pragma intrinsic(__readgsdword)
+	uint64 __readgsqword(_In_ uint32 offset);
+#pragma intrinsic(__readgsqword)
 
 	//Windows API function imports
-	__declspec(dllimport) NtStatus LdrRegisterDllNotification(_In_ uint32 flags, _In_ DllNotification_t notificationFunction, _In_opt_ ptr context, _Out_ ptr& cookie);
-	__declspec(dllimport) NtStatus LdrUnregisterDllNotification(_In_ ptr cookie);
+	__declspec(dllimport) NtStatus LdrLoadDll(_In_ LoaderFlag flags, _In_opt_ uint32* reserved, _In_ const UnicodeString& filePath, _Out_ ModuleHandle& moduleHandle);
 	__declspec(dllimport) NtStatus NtAllocateVirtualMemory(_In_ Handle process, _Inout_ _Pre_maybenull_ _Post_writable_byte_size_(regionSize) ptr& baseAddress, _In_ uint64 zeroBits, _Inout_ uint64& regionSize, _In_ PageAllocationType allocationType, _In_ PageProtection protection);
 	__declspec(dllimport) NtStatus NtClose(_Post_invalid_ Handle handle);
 	__declspec(dllimport) NtStatus NtCreateThreadEx(_Out_ Handle& handle, _In_ uint32 accessMask, _In_opt_ const ObjectAttributes* attributes, _In_ Handle process, _In_ cptr startRoutine, _In_opt_ cptr argument, _In_ uint32 flags, _In_ uint64 zeroBits, _In_ uint64 stackSize, _In_ uint64 maxStackSize, _In_opt_ ptr attributeList);
@@ -197,14 +177,12 @@ extern "C"
 	__declspec(dllimport) NtStatus NtOpenFile(_Out_ Handle& handle, _In_ uint32 accessMask, _In_ const ObjectAttributes& attributes, _Out_ IoStatusBlock& statusBlock, _In_ FileShare shareAccess, _In_ FileOpenOption openOptions);
 	__declspec(dllimport) NtStatus NtOpenProcessToken(_In_ Handle process, _In_ uint32 accessMask, _Out_ Handle& handle);
 	__declspec(dllimport) NtStatus NtOpenSection(_Out_ Handle& handle, _In_ uint32 accessMask, _In_ const ObjectAttributes& attributes);
-	__declspec(dllimport) NtStatus NtProtectVirtualMemory(_In_ Handle process, _Inout_ _Pre_valid_ ptr& baseAddress, _Inout_ uint64& protectionSize, _In_ PageProtection newProtection, _Out_ PageProtection& oldProtection);
 	__declspec(dllimport) NtStatus NtQueryAttributesFile(_In_ const ObjectAttributes& attributes, _Out_ FileBasicInformation& information);
 	__declspec(dllimport) NtStatus NtQueryDirectoryFile(_In_ Handle file, _In_opt_ Handle eventHandle, _In_opt_ ptr apcRoutine, _In_opt_ ptr apcContext, _Out_ IoStatusBlock& statusBlock, _Out_writes_bytes_(informationSize) FileNamesInformation* information, _In_ uint64 informationSize, _In_ FileInformationClass informationClass, _In_ bool returnSingleEntry, _In_opt_ const UnicodeString* fileMask, _In_ bool restartScan);
-	__declspec(dllimport) NtStatus NtQueryInformationThread(_In_ Handle thread, _In_ ThreadInformationClass informationClass, _Out_ ThreadBasicInformation& information, _In_ uint32 informationSize, _Out_opt_ uint32* returnSize);
-	__declspec(dllimport) NtStatus NtResumeThread(_In_ Handle thread, _Out_opt_ uint32* suspendCount);
 	__declspec(dllimport) NtStatus NtSetEvent(_In_ Handle eventHandle, _Out_opt_ uint32* previousState);
 	__declspec(dllimport) NtStatus NtSetInformationProcess(_In_ Handle process, _In_ ProcessInformationClass informationClass, _In_ const uint16& information, _In_ uint32 informationSize);
 	__declspec(dllimport) NtStatus NtSetInformationToken(_In_ Handle token, _In_ TokenInformationClass informationClass, _In_ const TokenMandatoryLabel& information, _In_ uint32 informationSize);
+	__declspec(dllimport) NtStatus NtTerminateThread(_In_ Handle thread, _In_ uint32 exitCode);
 	__declspec(dllimport) NtStatus NtUnmapViewOfSection(_In_ Handle process, _Post_invalid_ cptr baseAddress);
 	__declspec(dllimport) NtStatus NtWaitForSingleObject(_In_ Handle handle, _In_ bool alertable, _In_opt_ const int64* timeout);
 	__declspec(dllimport) NtStatus NtWriteVirtualMemory(_In_ Handle process, _In_ ptr address, _In_ cptr buffer, _In_ uint32 bufferSize, _Out_opt_ uint32* bytesWritten);
@@ -362,12 +340,12 @@ struct ServerRulesCallbackWrapper
 cptr ServerRulesCallbackWrapper::VirtualMethodTableData[3];
 
 //Globals
+wchar SteamApiPath[260];
+uint32 SteamApiPathSize;
 uint64 SteamId;
 ptr Share;
 Handle InputEvent;
 Handle OutputEvent;
-ptr DllNotificationCookie;
-ModuleHandle ImageBase;
 ServerRulesCallbackWrapper CallbackWrappers[256];
 wchar ModsDirectoryPathUnicode[264];
 uint32 ModsDirectoryPathUnicodeSize;
@@ -541,30 +519,51 @@ bool GetAPICallResult(_In_ SteamInterfaceWrapper* iSteamUtilsWrapper, _In_ uint6
 	}
 	return reinterpret_cast<bool(*)(SteamInterface*, uint64, ptr, uint32, uint32, bool&)>(iSteamUtilsWrapper->SteamApiInterface->VirtualMethodTable[13])(iSteamUtilsWrapper->SteamApiInterface, apiCall, callback, callbackSize, callbackIndex, failed);
 }
-//Shellcode functions
-bool SteamAPI_Init_Stub()
+//Shellcode entry point
+uint32 ShellcodeMain() //Game process entry function, opens launcher's IPC objects, loads and wraps Steam API and proceeds to ShooterGame.exe entry point
 {
-	//Unregister dll notification
-	LdrUnregisterDllNotification(DllNotificationCookie);
-	//Put original SteamAPI_Init code back
-	const ptr steamAPI_Init = PtrAddOffset<void>(ImageBase, 0x51F0);
-	*reinterpret_cast<uint64*>(steamAPI_Init) = 0xCCFFFFF5C9E9C933;
-	*PtrAddOffset<uint32>(steamAPI_Init, 8) = 0xCCCCCCCC;
-	//Return original .text section protection (ExecuteRead)
-	ptr textSectionBase = PtrAddOffset<void>(ImageBase, 0x1000);
-	uint64 textSectionSize = 0x19000;
-	PageProtection oldProtection;
-	NtProtectVirtualMemory(CurrentProcess, textSectionBase, textSectionSize, PageProtection::ExecuteRead, oldProtection);
-	//Call original SteamAPI_Init
-	if (!reinterpret_cast<bool(*)()>(steamAPI_Init)())
+	UnicodeString objectName{ 32, 34, L"TEKLauncherShare" };
+	ObjectAttributes attributes{ sizeof(ObjectAttributes), nullptr, &objectName, ObjectAttribute::None, nullptr, nullptr };
+	BaseGetNamedObjectDirectory(attributes.RootDirectory);
+	Handle shareSection;
+	if (NtOpenSection(shareSection, 0x06, attributes))
+		return 0;
+	uint64 viewSize = 0;
+	const NtStatus status = NtMapViewOfSection(shareSection, CurrentProcess, Share, 0, 0x1000, nullptr, viewSize, 2, PageAllocationType::None, PageProtection::ReadWrite);
+	NtClose(shareSection);
+	if (status)
+		return 0;
+	objectName = { 32, 34, L"TEKLauncherInput" };
+	if (NtOpenEvent(InputEvent, 0x1F0003, attributes))
 	{
-		*reinterpret_cast<StatusMessage*>(Share) = { 0, 11 };
+		NtUnmapViewOfSection(CurrentProcess, Share);
+		return 0;
+	}
+	objectName = { 34, 36, L"TEKLauncherOutput" };
+	if (NtOpenEvent(OutputEvent, 0x1F0003, attributes))
+	{
+		NtClose(InputEvent);
+		NtUnmapViewOfSection(CurrentProcess, Share);
+		return 0;
+	}
+	//Load steam_api64.dll
+	ModuleHandle steamApiBase;
+	if (LdrLoadDll(LoaderFlag::LoadWithAlteredSearchPath, nullptr, { static_cast<uint16>(SteamApiPathSize), static_cast<uint16>(SteamApiPathSize + 2), SteamApiPath }, steamApiBase))
+	{
+		*reinterpret_cast<StatusMessage*>(Share) = { 0, 7 };
 		NtSetEvent(InputEvent, nullptr);
-		return false;
+		return 0;
+	}
+	//Call SteamAPI_Init; ARK never updates steam_api64.dll so absolute offsets into image can be used
+	if (!reinterpret_cast<bool(*)()>(PtrAddOffset<void>(steamApiBase, 0x51F0))())
+	{
+		*reinterpret_cast<StatusMessage*>(Share) = { 0, 8 };
+		NtSetEvent(InputEvent, nullptr);
+		return 0;
 	}
 	//Wrap Steam API interfaces and redirect methods
-	SteamAppsWrapper.Initialize(*PtrAddOffset<SteamInterface*>(ImageBase, 0x2FE98));
-	*PtrAddOffset<SteamInterfaceWrapper*>(ImageBase, 0x2FE98) = &SteamAppsWrapper;
+	SteamAppsWrapper.Initialize(*PtrAddOffset<SteamInterface*>(steamApiBase, 0x2FE98));
+	*PtrAddOffset<SteamInterfaceWrapper*>(steamApiBase, 0x2FE98) = &SteamAppsWrapper;
 	SteamAppsWrapper.VirtualMethodTableData[0] = ReturnTrue;
 	SteamAppsWrapper.VirtualMethodTableData[6] = ReturnTrue;
 	SteamAppsWrapper.VirtualMethodTableData[7] = ReturnTrue;
@@ -575,84 +574,38 @@ bool SteamAPI_Init_Stub()
 	ServerRulesCallbackWrapper* const callbackWrappersEnd = CallbackWrappers + 256;
 	for (ServerRulesCallbackWrapper* i = CallbackWrappers; i < callbackWrappersEnd; ++i)
 		i->VirtualMethodTable = ServerRulesCallbackWrapper::VirtualMethodTableData;
-	SteamMatchmakingServersWrapper.Initialize(*PtrAddOffset<SteamInterface*>(ImageBase, 0x2FEA0));
-	*PtrAddOffset<SteamInterfaceWrapper*>(ImageBase, 0x2FEA0) = &SteamMatchmakingServersWrapper;
+	SteamMatchmakingServersWrapper.Initialize(*PtrAddOffset<SteamInterface*>(steamApiBase, 0x2FEA0));
+	*PtrAddOffset<SteamInterfaceWrapper*>(steamApiBase, 0x2FEA0) = &SteamMatchmakingServersWrapper;
 	SteamMatchmakingServersWrapper.VirtualMethodTableData[0] = RequestInternetServerList;
 	SteamMatchmakingServersWrapper.VirtualMethodTableData[15] = ServerRules;
 	if (Status != GameStatus::OwnedAndInstalled)
 	{
-		const UnicodeString modsDirectoryPath{ static_cast<uint16>(ModsDirectoryPathUnicodeSize), 528, ModsDirectoryPathUnicode };
+		const UnicodeString modsDirectoryPath { static_cast<uint16>(ModsDirectoryPathUnicodeSize), 528, ModsDirectoryPathUnicode };
 		IoStatusBlock statusBlock;
 		if (NtOpenFile(ModsDirectoryHandle, 0x100001, { sizeof(ObjectAttributes), nullptr, &modsDirectoryPath, ObjectAttribute::CaseInsensitive, nullptr, nullptr }, statusBlock, FileShare::All, FileOpenOption::DirectoryFile))
 		{
-			*reinterpret_cast<StatusMessage*>(Share) = { 0, 11 };
+			*reinterpret_cast<StatusMessage*>(Share) = { 0, 9 };
 			NtSetEvent(InputEvent, nullptr);
-			return false;
+			return 0;
 		}
-		SteamUGCWrapper.Initialize(*PtrAddOffset<SteamInterface*>(ImageBase, 0x2FED8));
-		*PtrAddOffset<SteamInterfaceWrapper*>(ImageBase, 0x2FED8) = &SteamUGCWrapper;
+		SteamUGCWrapper.Initialize(*PtrAddOffset<SteamInterface*>(steamApiBase, 0x2FED8));
+		*PtrAddOffset<SteamInterfaceWrapper*>(steamApiBase, 0x2FED8) = &SteamUGCWrapper;
 		SteamUGCWrapper.VirtualMethodTableData[25] = SubscribeItem;
 		SteamUGCWrapper.VirtualMethodTableData[27] = GetNumSubscribedItems;
 		SteamUGCWrapper.VirtualMethodTableData[28] = GetSubscribedItems;
 		SteamUGCWrapper.VirtualMethodTableData[29] = GetItemInstallInfo;
 		SteamUGCWrapper.VirtualMethodTableData[30] = GetItemUpdateInfo;
-		SteamUtilsWrapper.Initialize(*PtrAddOffset<SteamInterface*>(ImageBase, 0x2FE80));
-		*PtrAddOffset<SteamInterfaceWrapper*>(ImageBase, 0x2FE80) = &SteamUtilsWrapper;
+		SteamUtilsWrapper.Initialize(*PtrAddOffset<SteamInterface*>(steamApiBase, 0x2FE80));
+		*PtrAddOffset<SteamInterfaceWrapper*>(steamApiBase, 0x2FE80) = &SteamUtilsWrapper;
 		if (Status == GameStatus::NotOwned)
 			SteamUtilsWrapper.VirtualMethodTableData[9] = GetAppID;
 		SteamUtilsWrapper.VirtualMethodTableData[11] = IsAPICallCompleted;
 		SteamUtilsWrapper.VirtualMethodTableData[13] = GetAPICallResult;
 	}
-	return true;
-}
-void DllNotification(_In_ DllNotificationReason reason, _In_ DllLoadedNotificationData data, _In_opt_ ptr context) //When notified of steam_api64.dll load, redirects SteamAPI_Init to shellcode stub
-{
-	if (reason != DllNotificationReason::Loaded || data.BaseName->Length != 30)
-		return;
-	//Check if dll name is L"steam_api64.dll"
-	const uint64* const data64 = reinterpret_cast<const uint64*>(data.BaseName->Buffer);
-	if (data64[0] != 0x0061006500740073 || data64[1] != 0x00700061005F006D || data64[2] != 0x002E003400360069 || data64[3] != 0x0000006C006C0064)
-		return;
-	ImageBase = data.ImageBase;
-	//ARK never updates steam_api64.dll so abosulte offsets into image can be used
-	//Make .text section of the dll writable
-	ptr textSectionBase = PtrAddOffset<void>(data.ImageBase, 0x1000);
-	uint64 textSectionSize = 0x19000;
-	PageProtection oldProtection;
-	NtProtectVirtualMemory(CurrentProcess, textSectionBase, textSectionSize, PageProtection::ExecuteReadWrite, oldProtection);
-	//Overwrite SteamAPI_Init with temporary code that jumps to SteamAPI_Init_Stub
-	const ptr steamAPI_Init = PtrAddOffset<void>(data.ImageBase, 0x51F0);
-	*reinterpret_cast<uint16*>(steamAPI_Init) = 0xB848; //mov rax,
-	*PtrAddOffset<ptr>(steamAPI_Init, 2) = SteamAPI_Init_Stub;
-	*PtrAddOffset<uint16>(steamAPI_Init, 10) = 0xE0FF; //jmp rax
-}
-uint32 ShellcodeMain() //The first fucntion called within game process, opens launcher's IPC objects and registers dll notification
-{
-	UnicodeString objectName{ 32, 34, L"TEKLauncherShare" };
-	ObjectAttributes attributes{ sizeof(ObjectAttributes), nullptr, &objectName, ObjectAttribute::None, nullptr, nullptr };
-	BaseGetNamedObjectDirectory(attributes.RootDirectory);
-	Handle shareSection;
-	if (NtOpenSection(shareSection, 0x06, attributes))
-		return 7;
-	uint64 viewSize = 0;
-	const NtStatus status = NtMapViewOfSection(shareSection, CurrentProcess, Share, 0, 0x1000, nullptr, viewSize, 2, PageAllocationType::None, PageProtection::ReadWrite);
-	NtClose(shareSection);
-	if (status)
-		return 8;
-	objectName = { 32, 34, L"TEKLauncherInput" };
-	if (NtOpenEvent(InputEvent, 0x1F0003, attributes))
-	{
-		NtUnmapViewOfSection(CurrentProcess, Share);
-		return 9;
-	}
-	objectName = { 34, 36, L"TEKLauncherOutput" };
-	if (NtOpenEvent(OutputEvent, 0x1F0003, attributes))
-	{
-		NtClose(InputEvent);
-		NtUnmapViewOfSection(CurrentProcess, Share);
-		return 10;
-	}
-	LdrRegisterDllNotification(0, DllNotification, nullptr, DllNotificationCookie);
+	//Proceed to executing ShooterGame.exe entry point, essentially making current thread the main one
+	PEB* const peb = reinterpret_cast<PEB*>(__readgsqword(0x60));
+	const ModuleHandle imageBase = peb->BaseAddress;
+	reinterpret_cast<void(*)(PEB*)>(PtrAddOffset<void>(imageBase, *PtrAddOffset<uint32>(imageBase, *PtrAddOffset<uint32>(imageBase, 0x3C) + 40)))(peb); //Locate entry point offset in PE optional header, apply it to image base and run with PEB pointer as argument
 	return 0;
 }
 
@@ -665,6 +618,8 @@ struct InjectionParameters
 	uint32 ExePathSize;
 	cwstr CommandLine;
 	uint32 CommandLineSize;
+	cwstr SteamApiPath;
+	uint32 SteamApiPathSize;
 	cwstr ModsDirectoryPathUnicode;
 	uint32 ModsDirectoryPathUnicodeSize;
 	cstr ModsDirectoryPathUtf8;
@@ -677,6 +632,7 @@ struct InjectionParameters
 uint32 Inject(_In_ InjectionParameters& injParams) //Entry point called within host process, creates game process and injects shellcode image into it
 {
 	//Copy parameters that will be used inside game process into image space
+	memcpy(SteamApiPath, injParams.SteamApiPath, SteamApiPathSize = injParams.SteamApiPathSize);
 	memcpy(ModsDirectoryPathUnicode, injParams.ModsDirectoryPathUnicode, ModsDirectoryPathUnicodeSize = injParams.ModsDirectoryPathUnicodeSize);
 	memcpy(ModsDirectoryPathUtf8, injParams.ModsDirectoryPathUtf8, ModsDirectoryPathUtf8Size = injParams.ModsDirectoryPathUtf8Size);
 	Status = injParams.Status;
@@ -735,6 +691,9 @@ uint32 Inject(_In_ InjectionParameters& injParams) //Entry point called within h
 	RtlDestroyProcessParameters(parameters);
 	if (status)
 		return 3;
+	//Terminate OS-created main thread, shellcode's thread will take that role
+	NtTerminateThread(thread, 0);
+	NtClose(thread);
 	//Set high priority if requested
 	if (injParams.SetHighProcessPriority)
 		NtSetInformationProcess(process, ProcessInformationClass::BasePriority, 0x300, 2);
@@ -752,21 +711,15 @@ uint32 Inject(_In_ InjectionParameters& injParams) //Entry point called within h
 		exitCode = 5;
 		goto Exit;
 	}
-	//Execute ShellcodeMain()
-	Handle shellcodeThread;
-	if (NtCreateThreadEx(shellcodeThread, 0x1FFFFF, nullptr, process, reinterpret_cast<const byte*>(ShellcodeMain) - reinterpret_cast<const byte*>(injParams.ImageBase) + reinterpret_cast<const byte*>(region), nullptr, 0, 0, 0, 0, nullptr))
+	//Create new main thread running ShellcodeMain()
+	if (NtCreateThreadEx(thread, 0x1FFFFF, nullptr, process, reinterpret_cast<const byte*>(ShellcodeMain) - reinterpret_cast<const byte*>(injParams.ImageBase) + reinterpret_cast<const byte*>(region), nullptr, 0, 0, 0, 0, nullptr))
 	{
 		exitCode = 6;
 		goto Exit;
 	}
-	NtWaitForSingleObject(shellcodeThread, false, nullptr);
-	ThreadBasicInformation information;
-	NtQueryInformationThread(shellcodeThread, ThreadInformationClass::Basic, information, sizeof(ThreadBasicInformation), nullptr);
-	exitCode = information.ExitCode;
-	NtClose(shellcodeThread);
-Exit:
-	NtResumeThread(thread, nullptr);
 	NtClose(thread);
+	exitCode = 0;
+Exit:
 	NtClose(process);
 	return exitCode;
 }
