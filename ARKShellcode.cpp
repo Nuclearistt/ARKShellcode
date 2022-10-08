@@ -691,9 +691,6 @@ uint32 Inject(_In_ InjectionParameters& injParams) //Entry point called within h
 	RtlDestroyProcessParameters(parameters);
 	if (status)
 		return 3;
-	//Terminate OS-created main thread, shellcode's thread will take that role
-	NtTerminateThread(thread, 0);
-	NtClose(thread);
 	//Set high priority if requested
 	if (injParams.SetHighProcessPriority)
 		NtSetInformationProcess(process, ProcessInformationClass::BasePriority, 0x300, 2);
@@ -711,12 +708,16 @@ uint32 Inject(_In_ InjectionParameters& injParams) //Entry point called within h
 		exitCode = 5;
 		goto Exit;
 	}
+	Handle shellcodeThread;
 	//Create new main thread running ShellcodeMain()
-	if (NtCreateThreadEx(thread, 0x1FFFFF, nullptr, process, reinterpret_cast<const byte*>(ShellcodeMain) - reinterpret_cast<const byte*>(injParams.ImageBase) + reinterpret_cast<const byte*>(region), nullptr, 0, 0, 0, 0, nullptr))
+	if (NtCreateThreadEx(shellcodeThread, 0x1FFFFF, nullptr, process, reinterpret_cast<const byte*>(ShellcodeMain) - reinterpret_cast<const byte*>(injParams.ImageBase) + reinterpret_cast<const byte*>(region), nullptr, 0, 0, 0, 0, nullptr))
 	{
 		exitCode = 6;
 		goto Exit;
 	}
+	NtClose(shellcodeThread);
+	//Terminate OS-created main thread, shellcode's thread will take that role
+	NtTerminateThread(thread, 0);
 	NtClose(thread);
 	exitCode = 0;
 Exit:
