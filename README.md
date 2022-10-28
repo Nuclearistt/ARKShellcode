@@ -17,7 +17,7 @@ ARK Shellcode is not supposed to be used directly. First, its PE image must be l
 
 ## How does it work?
 
-Inject() creates suspended game process with all needed parameters and copies shellcode image into its address space, then terminates OS-created main thread before it gets to execute any instructions and instead creates a thread running ShellcodeMain() that loads and initializes Steam API, then replaces DLL's internal pointers to Steam interfaces with wrappers that override certain method calls with calls to shellcode's functions and redirect the others to Steam interfaces. Afterwards, ShellcodeMain proceeds to execute game's entry point function as if nothing happened before, by the point game code runs SteamAPI_Init() it will return true as Steam API has already been initialized before, and thus no changes will be undone
+Inject() creates suspended game process with all needed parameters and copies shellcode image into its address space, then modifies main thread's context so RtlInitUserThread will call ShellcodeMain as program entry point, which in turn loads and initializes Steam API, then replaces DLL's internal pointers to Steam interfaces with wrappers that override certain method calls with calls to shellcode functions and redirect the others to Steam interfaces. Afterwards, ShellcodeMain proceeds to execute game's real entry point function as if nothing happened before, by the point game code runs SteamAPI_Init() it will return true as Steam API has already been initialized before, and thus no changes will be undone
 
 ## License
 
